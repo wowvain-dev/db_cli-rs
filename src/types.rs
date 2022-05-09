@@ -1,10 +1,29 @@
-use std::{collections::LinkedList, default};
+use std::collections::LinkedList;
 
+#[derive(Copy, Clone, PartialEq)]
+pub enum QueryMode {
+    FirstName,
+    LastName,
+    PhoneNumber,
+    Address,
+}
 
-#[derive(Copy, Clone)]
+impl From<QueryMode> for usize {
+    fn from(input: QueryMode) -> usize {
+        match input {
+            QueryMode::FirstName => 0,
+            QueryMode::LastName => 1,
+            QueryMode::PhoneNumber => 2,
+            QueryMode::Address => 3,
+        }
+    }
+}
+
+/// The possible menu items.
+#[derive(Copy, Clone, PartialEq)]
 pub enum MenuItem {
     Home,
-    MenuItem,
+    Menu,
     Clients,
 }
 
@@ -12,43 +31,71 @@ impl From<MenuItem> for usize {
     fn from(input: MenuItem) -> usize {
         match input {
             MenuItem::Home => 0,
-            MenuItem::MenuItem => 1,
+            MenuItem::Menu => 1,
             MenuItem::Clients => 2,
         }
     }
 }
 
+/// The input mode of the user.
 pub enum InputMode {
-    Normal, Editing
+    Normal,
+    Editing,
+}
+
+/// The field by which we sort the records.
+#[derive(PartialEq)]
+pub enum SortMode {
+    Id,
+    FirstName,
+    LastName,
+    PhoneNumber,
+    Address
+}
+
+/// The order in which the sorting is done.
+#[derive(PartialEq)]
+pub enum SortOrd {
+    Decr,
+    Incr
 }
 
 #[derive(Clone, Copy)]
-pub struct size {
+pub struct Size {
     pub height: u16,
     pub width: u16,
 }
 
 /// Holds the state of the application
 pub struct App {
-    pub input: String,
+    pub query: String,
     pub input_mode: InputMode,
+    pub query_mode: QueryMode,
+    pub sort_mode: SortMode,
+    pub sort_order: SortOrd,
     pub data_base: BazaDate,
-    pub window_size: size,
-}   
+    pub window_size: Size,
+}
 
 impl App {
-    pub fn size(&self) -> &size {
+    pub fn size(&self) -> &Size {
         &self.window_size
     }
 }
 
 impl Default for App {
     fn default() -> App {
-        App { 
-            input: String::new(), 
-            input_mode: InputMode::Normal, 
+        App {
+            query: String::new(),
+            input_mode: InputMode::Normal,
+            query_mode: QueryMode::FirstName,
+            sort_mode: SortMode::Id,
+            sort_order: SortOrd::Incr,
             data_base: BazaDate::default(),
-            window_size: size {width: 0, height: 0}
+            window_size: Size {
+                width: 0,
+                height: 0,
+            },
         }
     }
 }
@@ -62,35 +109,42 @@ pub enum Event<I> {
 #[derive(Debug, Clone)]
 /// The Client type struct.
 pub struct Client {
-    pub nr_ordine: i32, 
+    pub nr_ordine: i32,
     pub nume: String,
     pub prenume: String,
     pub nr_telefon: String,
-    pub adresa: String
+    pub adresa: String,
 }
 
 #[derive(Debug, Clone, Default)]
 /// The main database type struct.
 pub struct BazaDate {
-    pub clienti: LinkedList<Client>,
-    pub top: i32
+    pub clienti: Vec<Client>,
+    pub top: i32,
 }
 
 impl Client {
     pub fn new() -> Self {
-        Client { 
-            nr_ordine: 0, 
-            nume: String::new(), 
-            prenume: String::new(), 
-            nr_telefon: String::new(), 
-            adresa: String::new() }
+        Client {
+            nr_ordine: 0,
+            nume: String::new(),
+            prenume: String::new(),
+            nr_telefon: String::new(),
+            adresa: String::new(),
+        }
     }
 }
 
 impl BazaDate {
     pub fn new() -> Self {
-        BazaDate { 
-            clienti: LinkedList::new(), 
-            top: -1 }
+        BazaDate {
+            clienti: Vec::new(),
+            top: -1,
+        }
+    }
+
+    /// Deletes record from database.
+    pub fn delete_record(&mut self, index: usize) {
+        self.clienti.remove(index);
     }
 }
