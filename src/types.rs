@@ -1,5 +1,7 @@
 use std::collections::LinkedList;
 
+use tui::widgets::Row;
+
 #[derive(Copy, Clone, PartialEq)]
 pub enum QueryMode {
     FirstName,
@@ -37,6 +39,26 @@ impl From<MenuItem> for usize {
     }
 }
 
+/// The possible record options.
+#[derive(Copy, Clone, PartialEq)]
+pub enum RecordOption {
+    None,
+    Add,
+    Delete,
+    Edit
+}
+
+impl From<RecordOption> for usize {
+    fn from(input: RecordOption) -> usize {
+        match input {
+            RecordOption::None => 0,
+            RecordOption::Add => 1,
+            RecordOption::Delete => 2,
+            RecordOption::Edit => 3,
+        }
+    }
+}
+
 /// The input mode of the user.
 pub enum InputMode {
     Normal,
@@ -50,14 +72,14 @@ pub enum SortMode {
     FirstName,
     LastName,
     PhoneNumber,
-    Address
+    Address,
 }
 
 /// The order in which the sorting is done.
 #[derive(PartialEq)]
 pub enum SortOrd {
     Decr,
-    Incr
+    Incr,
 }
 
 #[derive(Clone, Copy)]
@@ -132,6 +154,15 @@ impl Client {
             nr_telefon: String::new(),
             adresa: String::new(),
         }
+    }
+    pub fn get_row(self) -> Vec<String> {
+        vec![
+            self.nr_ordine.to_string(),
+            self.prenume.clone(),
+            self.nume.clone(),
+            self.nr_telefon.clone(),
+            self.adresa.clone(),
+        ]
     }
 }
 

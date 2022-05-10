@@ -9,7 +9,7 @@ use tui::{
     Frame, Terminal,
 };
 
-use crate::types::{App, BazaDate, Client, InputMode, MenuItem, QueryMode, SortMode, SortOrd};
+use crate::types::{App, BazaDate, Client, InputMode, MenuItem, QueryMode, SortMode, SortOrd, RecordOption};
 
 /// Clear the terminal screen and moves the cursor at the top.
 pub fn clear_screen() {
@@ -68,6 +68,7 @@ pub fn create_database(file_contents: String) -> BazaDate {
 /// App execution loop.
 pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: &mut App) -> io::Result<()> {
     let mut active_menu_item = MenuItem::Home;
+    let mut active_record_option = RecordOption::None;
     let mut table_state = TableState::default();
     table_state.select(Some(0));
     loop {
@@ -115,9 +116,9 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: &mut App) -> io:
                             }
                         }
                         _ => {}
-                    }
+                    },
                     KeyCode::Up => match active_menu_item {
-                        MenuItem::Clients =>  {
+                        MenuItem::Clients => {
                             if let Some(selected) = table_state.selected() {
                                 if selected == 0 {
                                     table_state.select(Some(app.data_base.top as usize));
@@ -127,19 +128,15 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: &mut App) -> io:
                             }
                         }
                         _ => {}
-                    }
+                    },
                     KeyCode::Char('+') => match active_menu_item {
-                        MenuItem::Clients => {
-                            app.sort_order = SortOrd::Incr
-                        }
+                        MenuItem::Clients => app.sort_order = SortOrd::Incr,
                         _ => {}
-                    }
+                    },
                     KeyCode::Char('-') => match active_menu_item {
-                        MenuItem::Clients => {
-                            app.sort_order = SortOrd::Decr
-                        }
+                        MenuItem::Clients => app.sort_order = SortOrd::Decr,
                         _ => {}
-                    }
+                    },
                     KeyCode::Tab => match active_menu_item {
                         MenuItem::Clients => {
                             app.sort_mode = match app.sort_mode {
@@ -147,11 +144,11 @@ pub fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: &mut App) -> io:
                                 SortMode::FirstName => SortMode::LastName,
                                 SortMode::LastName => SortMode::PhoneNumber,
                                 SortMode::PhoneNumber => SortMode::Address,
-                                SortMode::Address => SortMode::Id
+                                SortMode::Address => SortMode::Id,
                             }
                         }
                         _ => {}
-                    }
+                    },
                     _ => {}
                 },
                 InputMode::Editing => match key.code {
@@ -224,6 +221,15 @@ pub fn ui<B: Backend>(
             ])
         })
         .collect();
+    let secondary_menus: Vec<Spans> = vec!["None", "Add", "Edit", "Delete"]
+        .iter()
+        .map(|t| {
+            Spans::from(
+                vec![
+                    Span::styled(t.to_string(), Style::default().fg(Color::Green).add_modifier(Modifier::ITALIC))
+                ]
+            )
+        }).collect();
 
     let tabs = Tabs::new(menu)
         .select((*active_menu_item).into())
@@ -232,7 +238,25 @@ pub fn ui<B: Backend>(
         .highlight_style(Style::default().fg(Color::Black).bg(Color::White))
         .divider(Span::raw("|"));
 
-    f.render_widget(tabs, chunks[2]);
+    let secondary_tabs = Tabs::new(secondary_menus)
+
+        .block(Block::default().title("Record Actions").borders(Borders::ALL))
+        .style(Style::default().fg(Color::White))
+        .highlight_style(Style::default().fg(Color::Black).bg(Color::White))
+        .divider(Span::raw("|"));
+
+    let tabs_layout = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(
+            [
+                Constraint::Min(30),
+                Constraint::Length(30)
+            ].as_ref()
+        )
+        .split(chunks[2]);
+
+    f.render_widget(tabs, tabs_layout[0]);
+    f.render_widget(secondary_tabs, tabs_layout[1]);
 
     let copyright = Paragraph::new("DB-CLI 2022 - all rights reserved ©wowvain-dev")
         .style(Style::default().fg(Color::LightCyan))
@@ -299,7 +323,7 @@ pub fn ui<B: Backend>(
                     Span::styled(
                         "-/+ - Change Sorting Order",
                         Style::default().fg(Color::Yellow),
-                    )
+                    ),
                 ]
             } else {
                 vec![
@@ -320,13 +344,7 @@ pub fn ui<B: Backend>(
                 "Q - Exit App",
                 Style::default().fg(Color::Yellow),
             )];
-            f.render_widget(
-                Block::default()
-                    .borders(Borders::LEFT | Borders::BOTTOM | Borders::RIGHT)
-                    .border_style(Style::default().fg(Color::White))
-                    .border_type(BorderType::Rounded),
-                chunks[3],
-            );
+            render_add(f, app, chunks[3]);
         }
     }
 
@@ -360,8 +378,60 @@ pub fn render_home<'a>() -> Paragraph<'a> {
     home
 }
 
-/// Render the contents of the main menu tab.
-pub fn render_menu<B: Backend>(_f: &mut Frame<B>, _app: &App) {}
+/// Render the Add Record option zone.
+pub fn render_add<B: Backend>(
+    f: &mut Frame<B>,
+    app: &App,
+    rendering_zone: Rect,
+) {
+    let layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Percentage(100)].as_ref())
+        .split(rendering_zone);
+    let main_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .vertical_margin(2)
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
+        .split(layout[0]);
+    let upper_layout = Layout::default()
+        .margin(3)
+        .horizontal_margin(4)
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(40), Constraint::Percentage(20), Constraint::Percentage(40)].as_ref())
+        .split(main_layout[0]);
+    let lower_layout = Layout::default()
+        .margin(3)
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
+        .split(main_layout[1]);
+
+    let a = Paragraph::new("Test1")
+        .block(Block::default().borders(
+            Borders::ALL
+        ).border_type(BorderType::Rounded));
+    let b = Paragraph::new("Test2")
+        .block(Block::default().borders(
+            Borders::ALL
+        ).border_type(BorderType::Rounded));
+    let c = Paragraph::new("Test3")
+        .block(Block::default().borders(
+            Borders::ALL
+        ).border_type(BorderType::Rounded));
+    let d = Paragraph::new("Test4")
+        .block(Block::default().borders(
+            Borders::ALL
+        ).border_type(BorderType::Rounded));
+
+    let border = Block::default()
+        .borders(Borders::LEFT|Borders::RIGHT|Borders::BOTTOM)
+        .border_type(BorderType::Rounded);
+
+    f.render_widget(border, layout[0]);
+    f.render_widget(a, upper_layout[0]);
+    f.render_widget(b, upper_layout[2]);
+    f.render_widget(c, lower_layout[0]);
+    f.render_widget(d, lower_layout[1]);
+}
 
 /// Render the contents of the clients tab.
 pub fn render_clients<B: Backend>(
@@ -372,10 +442,10 @@ pub fn render_clients<B: Backend>(
 ) {
     let table_cell_constraints = &[
         Constraint::Length(3),
-        Constraint::Length(20),
-        Constraint::Length(20),
-        Constraint::Length(15),
-        Constraint::Length(app.size().width - 58),
+        Constraint::Min(10),
+        Constraint::Min(10),
+        Constraint::Min(15),
+        Constraint::Min(30),
     ];
 
     let table_layout = Layout::default()
@@ -441,23 +511,29 @@ pub fn render_clients<B: Backend>(
             SortMode::FirstName => String::from("first name"),
             SortMode::LastName => String::from("last name"),
             SortMode::PhoneNumber => String::from("phone number"),
-            SortMode::Address => String::from("address")
-        }
+            SortMode::Address => String::from("address"),
+        },
     );
-    let sort_bar_text = Spans::from(
-        vec![
-            Span::from("Sorted "),
-            Span::styled(custom_sort_text.0, Style::default().add_modifier(Modifier::ITALIC)),
-            Span::raw("by "),
-            Span::styled(custom_sort_text.1, Style::default().add_modifier(Modifier::ITALIC)),
-        ]
-    );
+    let sort_bar_text = Spans::from(vec![
+        Span::from("Sorted "),
+        Span::styled(
+            custom_sort_text.0,
+            Style::default().add_modifier(Modifier::ITALIC),
+        ),
+        Span::raw("by "),
+        Span::styled(
+            custom_sort_text.1,
+            Style::default().add_modifier(Modifier::ITALIC),
+        ),
+    ]);
 
     let sort_bar = Paragraph::new(sort_bar_text)
         .alignment(Alignment::Center)
         .block(
             Block::default()
-                .borders(Borders::ALL).border_type(BorderType::Rounded));
+                .borders(Borders::ALL)
+                .border_type(BorderType::Rounded),
+        );
 
     let rows = query_db(&app.query, app.query_mode, app);
 
@@ -499,116 +575,101 @@ pub fn render_clients<B: Backend>(
     f.render_stateful_widget(table, table_layout[1], table_state);
 }
 
-/// Function for returning only the rows with clients that match the query.
-fn query_db<'a>(query: &'a String, query_mode: QueryMode, app: &'a App) -> Vec<Row<'a>> {
+/// Function for returning only the rows with clients that
+/// match the query while also sorting them according to the sort order and mode.
+fn query_db(query: &String, query_mode: QueryMode, app: &App) -> Vec<Row<'static>> {
+    let mut sorted_clients: Vec<Client> = app.data_base.clienti.clone();
+
+    sorted_clients.sort_by(|a, b| match app.sort_mode {
+        SortMode::Id => match app.sort_order {
+            SortOrd::Incr => a.nr_ordine.partial_cmp(&b.nr_ordine).unwrap(),
+            SortOrd::Decr => b.nr_ordine.partial_cmp(&a.nr_ordine).unwrap(),
+        },
+        SortMode::FirstName => match app.sort_order {
+            SortOrd::Incr => a.prenume.partial_cmp(&b.prenume).unwrap(),
+            SortOrd::Decr => b.prenume.partial_cmp(&a.prenume).unwrap(),
+        },
+        SortMode::LastName => match app.sort_order {
+            SortOrd::Incr => a.nume.partial_cmp(&b.nume).unwrap(),
+            SortOrd::Decr => b.nume.partial_cmp(&a.nume).unwrap(),
+        },
+        SortMode::PhoneNumber => match app.sort_order {
+            SortOrd::Incr => a.nr_telefon.partial_cmp(&b.nr_telefon).unwrap(),
+            SortOrd::Decr => b.nr_telefon.partial_cmp(&a.nr_telefon).unwrap(),
+        },
+        SortMode::Address => match app.sort_order {
+            SortOrd::Incr => a.adresa.partial_cmp(&b.adresa).unwrap(),
+            SortOrd::Decr => b.adresa.partial_cmp(&a.adresa).unwrap(),
+        },
+    });
+
     if query.is_empty() {
-        app.data_base
-            .clienti
+        sorted_clients
             .iter()
-            .map(|clienti| {
+            .map(|client| {
                 Row::new(vec![
-                    clienti.nr_ordine.to_string(),
-                    clienti.prenume.clone(),
-                    clienti.nume.clone(),
-                    clienti.nr_telefon.clone(),
-                    clienti.adresa.clone(),
+                    client.nr_ordine.to_string(),
+                    client.prenume.clone(),
+                    client.nume.clone(),
+                    client.nr_telefon.clone(),
+                    client.adresa.clone(),
                 ])
             })
             .collect()
     } else {
         match query_mode {
-            QueryMode::FirstName => {
-                let temp: Vec<Client> = app
-                    .data_base
-                    .clienti
-                    .iter()
-                    .map(|client| client)
-                    .filter(|client| {
-                        (**client).prenume.contains(query)
-                    })
-                    .cloned()
-                    .collect();
-                temp.iter()
-                    .map(|client| {
-                        Row::new(vec![
-                            client.nr_ordine.to_string(),
-                            client.prenume.clone(),
-                            client.nume.clone(),
-                            client.nr_telefon.clone(),
-                            client.adresa.clone(),
-                        ])
-                    })
-                    .collect()
-            }
-            QueryMode::LastName => {
-                let temp: Vec<Client> = app
-                    .data_base
-                    .clienti
-                    .iter()
-                    .map(|client| client)
-                    .filter(|client| {
-                        (**client).nume.contains(query)
-                    })
-                    .cloned()
-                    .collect();
-                temp.iter()
-                    .map(|client| {
-                        Row::new(vec![
-                            client.nr_ordine.to_string(),
-                            client.prenume.clone(),
-                            client.nume.clone(),
-                            client.nr_telefon.clone(),
-                            client.adresa.clone(),
-                        ])
-                    })
-                    .collect()
-            }
-            QueryMode::PhoneNumber => {
-                let temp: Vec<Client> = app
-                    .data_base
-                    .clienti
-                    .iter()
-                    .map(|client| client)
-                    .filter(|client| {
-                        (**client).nr_telefon.contains(query)
-                    })
-                    .cloned()
-                    .collect();
-                temp.iter()
-                    .map(|client| {
-                        Row::new(vec![
-                            client.nr_ordine.to_string(),
-                            client.prenume.clone(),
-                            client.nume.clone(),
-                            client.nr_telefon.clone(),
-                            client.adresa.clone(),
-                        ])
-                    })
-                    .collect()
-            }
-            QueryMode::Address => {
-                let temp: Vec<Client> = app
-                    .data_base
-                    .clienti
-                    .iter()
-                    .map(|client| client)
-                    .filter(|client| {
-                        (**client).adresa.contains(query)
-                    })
-                    .cloned()
-                    .collect();
-                temp.iter()
-                    .map(|client| {
-                        Row::new(vec![
-                            client.nr_ordine.to_string(),
-                            client.prenume.clone(),
-                            client.nume.clone(),
-                            client.nr_telefon.clone(),
-                            client.adresa.clone(),
-                        ])
-                    })
-                    .collect()
-            }
+            QueryMode::FirstName => sorted_clients
+                .iter()
+                .filter(|q| (**q).prenume.contains(query))
+                .map(|client| {
+                    Row::new(vec![
+                        client.nr_ordine.to_string(),
+                        client.prenume.clone(),
+                        client.nume.clone(),
+                        client.nr_telefon.clone(),
+                        client.adresa.clone(),
+                    ])
+                })
+                .collect(),
+            QueryMode::LastName => sorted_clients
+                .iter()
+                .filter(|q| (**q).nume.contains(query))
+                .map(|client| {
+                    Row::new(vec![
+                        client.nr_ordine.to_string(),
+                        client.prenume.clone(),
+                        client.nume.clone(),
+                        client.nr_telefon.clone(),
+                        client.adresa.clone(),
+                    ])
+                })
+                .collect(),
+            QueryMode::PhoneNumber => sorted_clients
+                .iter()
+                .filter(|q| (**q).nr_telefon.contains(query))
+                .map(|client| {
+                    Row::new(vec![
+                        client.nr_ordine.to_string(),
+                        client.prenume.clone(),
+                        client.nume.clone(),
+                        client.nr_telefon.clone(),
+                        client.adresa.clone(),
+                    ])
+                })
+                .collect(),
+            QueryMode::Address => sorted_clients
+                .iter()
+                .filter(|q| (**q).adresa.contains(query))
+                .map(|client| {
+                    Row::new(vec![
+                        client.nr_ordine.to_string(),
+                        client.prenume.clone(),
+                        client.nume.clone(),
+                        client.nr_telefon.clone(),
+                        client.adresa.clone(),
+                    ])
+                })
+                .collect()
         }
     }
 }

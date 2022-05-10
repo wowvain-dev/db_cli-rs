@@ -1,7 +1,7 @@
 mod functions;
 mod types;
 
-use functions::{run_app, create_database};
+use functions::{create_database, run_app};
 
 use tui::{backend::CrosstermBackend, Terminal};
 
@@ -20,7 +20,6 @@ use std::{
 };
 
 fn main() -> Result<(), std::io::Error> {
-
     // INITIALIZE THE DATABASE
     if !Path::new("./baza_de_date.io").exists() {
         let file = File::create("./baza_de_date.io").expect("Can't Create File");
